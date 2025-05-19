@@ -1,7 +1,6 @@
-//juego/page.js
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +10,22 @@ import { useGameStore } from '@/lib/store';
 import RobotGuide from '@/components/game/robot-guide';
 import { loadMissions } from '@/lib/utils';
 import { toast } from 'sonner';
+import MigrateGameData from '@/components/game/migrate-game-data';
 
 export default function JuegoPage() {
   const router = useRouter();
-  const { levels, setLevels, resetGame, currentLevelId, completedMissions, score } = useGameStore();
+  const { 
+    levels, 
+    setLevels, 
+    resetGame, 
+    currentLevelId, 
+    completedMissions,
+    getCompletedMissionsForLevel,
+    score,
+    isLevelCompleted 
+  } = useGameStore();
+  
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     const initGame = async () => {
@@ -22,12 +33,16 @@ export default function JuegoPage() {
         try {
           const data = await loadMissions();
           setLevels(data.levels);
+          setIsLoading(false);
         } catch (error) {
           console.error("Error initializing game:", error);
           toast.error("Error al inicializar el juego", {
             description: "No se pudieron cargar los niveles del juego."
           });
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
     
@@ -38,6 +53,7 @@ export default function JuegoPage() {
     router.push(`/juego/nivel/${currentLevelId}`);
   };
   
+  // Calcular estadísticas del juego
   const totalMissions = levels.reduce((acc, level) => acc + level.missions.length, 0);
   const totalCompletedMissions = completedMissions.length;
   const progressPercentage = totalMissions > 0 ? Math.round((totalCompletedMissions / totalMissions) * 100) : 0;
@@ -45,8 +61,37 @@ export default function JuegoPage() {
   const lastPlayedLevelId = levels.length > 0 ? currentLevelId : 1;
   const lastPlayedLevel = levels.find(level => level.id === lastPlayedLevelId);
   
+  // Determinar si necesitamos mostrar el componente de migración
+  const [needsMigration, setNeedsMigration] = useState(false);
+  
+  useEffect(() => {
+    // Verificar si hay misiones en formato antiguo
+    if (completedMissions.length > 0) {
+      const hasMissionWithoutLevelPrefix = completedMissions.some(
+        missionId => typeof missionId === 'number' || (typeof missionId === 'string' && !missionId.includes('-'))
+      );
+      setNeedsMigration(hasMissionWithoutLevelPrefix);
+    }
+  }, [completedMissions]);
+  
+  if (isLoading) {
+    return (
+      <div className="container py-8 px-4 flex justify-center items-center min-h-screen">
+        <Card className="w-full max-w-md p-6 text-center">
+          <CardContent>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p>Cargando el juego...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   return (
     <div className="container py-8 px-4 md:px-8">
+      {/* Mostrar el componente de migración si es necesario */}
+      {needsMigration && <MigrateGameData />}
+    
       <div className="mb-10 text-center">
         <motion.h1 
           initial={{ opacity: 0, y: -20 }}
@@ -119,10 +164,12 @@ export default function JuegoPage() {
                   variant="outline" 
                   size="sm"
                   onClick={() => {
-                    resetGame();
-                    toast.success("Progreso reiniciado", {
-                      description: "Has reiniciado tu progreso en el juego."
-                    });
+                    if (confirm("¿Estás seguro? Se eliminarán todas tus misiones completadas.")) {
+                      resetGame();
+                      toast.success("Progreso reiniciado", {
+                        description: "Has reiniciado tu progreso en el juego."
+                      });
+                    }
                   }}
                   className="text-sm"
                 >
@@ -186,33 +233,61 @@ export default function JuegoPage() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {levels.slice(0, 3).map((level, index) => (
-          <motion.div
-            key={level.id}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 + (index * 0.1) }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Nivel {level.id}: {level.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm mb-4">{level.description}</p>
-                <div className="text-sm">
-                  <span className="font-medium">{level.missions.length}</span> misiones
-                </div>
-                <div className="mt-4">
-                  <Link href={`/juego/nivel/${level.id}`}>
-                    <Button variant="outline" className="w-full">
-                      Ver nivel
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+        {levels.slice(0, 3).map((level, index) => {
+          // Obtener el número de misiones completadas para este nivel
+          const levelCompletedMissions = getCompletedMissionsForLevel(level.id);
+          const levelCompletedCount = levelCompletedMissions.length;
+          const isCompleted = isLevelCompleted(level.id);
+          
+          return (
+            <motion.div
+              key={level.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 + (index * 0.1) }}
+            >
+              <Card className={isCompleted ? "border-green-300 bg-green-50" : ""}>
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-center">
+                    <span>Nivel {level.id}: {level.name}</span>
+                    {isCompleted && (
+                      <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">
+                        Completado
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm mb-4">{level.description}</p>
+                  <div className="text-sm mb-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <span>{levelCompletedCount} de {level.missions.length} completadas</span>
+                      <span className="text-xs text-gray-500">
+                        {level.missions.length > 0 ? Math.round((levelCompletedCount / level.missions.length) * 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 rounded-full" 
+                        style={{ width: `${level.missions.length > 0 ? (levelCompletedCount / level.missions.length) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Link href={`/juego/nivel/${level.id}`}>
+                      <Button 
+                        variant={isCompleted ? "outline" : "default"} 
+                        className={`w-full ${isCompleted ? "border-green-500 text-green-700" : ""}`}
+                      >
+                        {isCompleted ? "Repasar nivel" : "Ver nivel"}
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );

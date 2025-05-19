@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useGameStore } from "@/lib/store";
 
 export default function LevelNavigation({ levels, currentLevelId }) {
-  const completedMissions = useGameStore(state => state.completedMissions);
+  const { completedMissions, getCompletedMissionsForLevel } = useGameStore();
   
   // Calcula si un nivel está desbloqueado (completado al menos una misión del nivel anterior)
   const isLevelUnlocked = (levelId) => {
@@ -17,7 +17,9 @@ export default function LevelNavigation({ levels, currentLevelId }) {
     if (!previousLevel) return false;
     
     // Verifica si al menos una misión del nivel anterior está completada
-    return previousLevel.missions.some(mission => completedMissions.includes(mission.id));
+    // Usando el nuevo formato de misiones completadas (levelId-missionId)
+    const previousLevelMissions = getCompletedMissionsForLevel(levelId - 1);
+    return previousLevelMissions.length > 0;
   };
   
   return (
@@ -28,9 +30,7 @@ export default function LevelNavigation({ levels, currentLevelId }) {
           const isSelected = level.id === currentLevelId;
           const isUnlocked = isLevelUnlocked(level.id);
           const missionCount = level.missions.length;
-          const completedCount = level.missions.filter(mission => 
-            completedMissions.includes(mission.id)
-          ).length;
+          const completedCount = getCompletedMissionsForLevel(level.id).length;
           
           return (
             <Link 

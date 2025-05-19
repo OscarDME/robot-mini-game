@@ -1,4 +1,3 @@
-//juego/nivel/[id]/page.js
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
-import { useParams } from 'next/navigation'; 
+import { useParams, useRouter } from 'next/navigation'; 
 import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import MissionCard from '@/components/game/mission-card';
 import RobotGuide from '@/components/game/robot-guide';
@@ -20,6 +19,7 @@ import MapVisualization from '@/components/game/map-visualization';
 export default function LevelPage() {
   // Usar useParams en lugar de recibir params como prop
   const params = useParams();
+  const router = useRouter();
   const levelId = parseInt(params.id, 10);
   
   const { 
@@ -29,7 +29,9 @@ export default function LevelPage() {
     setCurrentMission, 
     setCurrentLevel,
     completeMission, 
-    completedMissions,
+    isMissionCompleted,
+    getCompletedMissionsForLevel,
+    isLevelCompleted,
     score
   } = useGameStore();
   
@@ -37,6 +39,8 @@ export default function LevelPage() {
   const [currentMission, setCurrentMissionData] = useState(null);
   const [robotMessage, setRobotMessage] = useState("");
   const [robotEmotion, setRobotEmotion] = useState("normal");
+  const [showLevelCompletedMessage, setShowLevelCompletedMessage] = useState(false);
+  const [nextLevelId, setNextLevelId] = useState(null);
 
   useEffect(() => {
     // Si aún no se han cargado los niveles, cargarlos
@@ -52,13 +56,11 @@ export default function LevelPage() {
             setLevel(loadedLevel);
             setCurrentLevel(levelId);
             
-            // Si hay una misión actual, cargarla
-            const mission = loadedLevel.missions.find(m => m.id === currentMissionId) || loadedLevel.missions[0];
-            if (mission) {
-              setCurrentMissionData(mission);
-              setCurrentMission(mission.id);
-              setInitialRobotMessage(mission, completedMissions.includes(mission.id));
-            }
+            // Seleccionar la primera misión no completada o la primera si todas están completas
+            selectAppropriateInitialMission(loadedLevel);
+            
+            // Verificar si todas las misiones del nivel están completadas
+            checkLevelCompletion(loadedLevel);
           }
         } catch (error) {
           console.error("Error loading level:", error);
@@ -73,19 +75,63 @@ export default function LevelPage() {
           setLevel(foundLevel);
           setCurrentLevel(levelId);
           
-          // Si hay una misión actual, cargarla
-          const mission = foundLevel.missions.find(m => m.id === currentMissionId) || foundLevel.missions[0];
-          if (mission) {
-            setCurrentMissionData(mission);
-            setCurrentMission(mission.id);
-            setInitialRobotMessage(mission, completedMissions.includes(mission.id));
-          }
+          // Seleccionar la primera misión no completada o la primera si todas están completas
+          selectAppropriateInitialMission(foundLevel);
+          
+          // Verificar si todas las misiones del nivel están completadas
+          checkLevelCompletion(foundLevel);
         }
       }
     };
     
     initLevel();
-  }, [levelId, levels, setLevels, currentMissionId, setCurrentMission, setCurrentLevel, completedMissions]);
+  }, [levelId, levels, setLevels, setCurrentMission, setCurrentLevel, isMissionCompleted]);
+
+  // Función para seleccionar la misión inicial apropiada
+  const selectAppropriateInitialMission = (currentLevel) => {
+    if (!currentLevel || !currentLevel.missions.length) return;
+    
+    // Buscar la primera misión no completada
+    const firstUncompletedMission = currentLevel.missions.find(
+      mission => !isMissionCompleted(levelId, mission.id)
+    );
+    
+    // Si hay una misión no completada, seleccionarla
+    if (firstUncompletedMission) {
+      setCurrentMissionData(firstUncompletedMission);
+      setCurrentMission(firstUncompletedMission.id);
+      setInitialRobotMessage(firstUncompletedMission, false);
+    } else {
+      // Si todas están completadas, seleccionar la primera
+      const firstMission = currentLevel.missions[0];
+      setCurrentMissionData(firstMission);
+      setCurrentMission(firstMission.id);
+      setInitialRobotMessage(firstMission, true);
+    }
+  };
+
+  // Función para verificar si el nivel está completado
+  const checkLevelCompletion = (level) => {
+    if (!level) return;
+    
+    // Usar la función del store para verificar si el nivel está completado
+    const completed = isLevelCompleted(levelId);
+    
+    if (completed) {
+      // Buscar el siguiente nivel
+      const nextLevel = levels.find(l => l.id === levelId + 1);
+      if (nextLevel) {
+        setNextLevelId(nextLevel.id);
+      }
+      setShowLevelCompletedMessage(true);
+    } else {
+      setShowLevelCompletedMessage(false);
+    }
+    
+    console.log(`Nivel ${levelId} completado: ${completed ? 'Sí' : 'No'}`);
+    
+    return completed;
+  };
 
   const setInitialRobotMessage = (mission, isCompleted) => {
     if (isCompleted) {
@@ -99,15 +145,41 @@ export default function LevelPage() {
 
   const handleCompleteMission = (missionId) => {
     // Verificar si la misión ya está completada
-    if (!completedMissions.includes(missionId)) {
+    if (!isMissionCompleted(levelId, missionId)) {
+      // La función completeMission ahora guardará el formato correcto levelId-missionId
       completeMission(missionId);
       setRobotEmotion("happy");
       setRobotMessage(getRandomEncouragement());
+      
+      // Verificar si con esta misión se completa el nivel
+      setTimeout(() => {
+        if (level) {
+          const levelNowCompleted = checkLevelCompletion(level);
+          
+          if (levelNowCompleted) {
+            // Buscar el siguiente nivel
+            const nextLevel = levels.find(l => l.id === levelId + 1);
+            if (nextLevel) {
+              setNextLevelId(nextLevel.id);
+              toast.success('¡Nivel completado!', {
+                description: `Has desbloqueado el nivel ${nextLevel.id}: ${nextLevel.name}`,
+              });
+            }
+          }
+        }
+      }, 100); // Pequeño retardo para asegurar que el estado se ha actualizado
     }
   };
 
   const handleNextMission = () => {
     if (!level) return;
+    
+    // Si todas las misiones están completadas y es la última misión, ir al siguiente nivel
+    if (isLevelCompleted(levelId) && nextLevelId) {
+      console.log(`Navegando al siguiente nivel: ${nextLevelId}`);
+      router.push(`/juego/nivel/${nextLevelId}`);
+      return;
+    }
     
     // Encontrar el índice de la misión actual
     const currentIndex = level.missions.findIndex(m => m.id === currentMission.id);
@@ -117,21 +189,23 @@ export default function LevelPage() {
       const nextMission = level.missions[currentIndex + 1];
       setCurrentMissionData(nextMission);
       setCurrentMission(nextMission.id);
-      setInitialRobotMessage(nextMission, completedMissions.includes(nextMission.id));
+      setInitialRobotMessage(nextMission, isMissionCompleted(levelId, nextMission.id));
     } else {
-      // Si es la última misión del nivel, mostrar mensaje de nivel completado
-      const allCompleted = level.missions.every(m => completedMissions.includes(m.id));
-      if (allCompleted) {
+      // Si es la última misión del nivel y todas están completadas
+      if (isLevelCompleted(levelId)) {
         setRobotEmotion("happy");
         setRobotMessage("¡Felicidades! Has completado todas las misiones de este nivel. ¡Eres increíble!");
         
-        // Ir al siguiente nivel si existe
-        const nextLevelId = levelId + 1;
-        const nextLevel = levels.find(l => l.id === nextLevelId);
-        if (nextLevel) {
-          toast.success('¡Nivel completado!', {
-            description: `Has desbloqueado el nivel ${nextLevelId}: ${nextLevel.name}`,
+        // Si hay siguiente nivel, navegar hacia él
+        if (nextLevelId) {
+          console.log(`Navegando al siguiente nivel: ${nextLevelId}`);
+          router.push(`/juego/nivel/${nextLevelId}`);
+        } else {
+          // Si es el último nivel y no hay siguiente, volver a la página principal
+          toast.success('¡Juego completado!', {
+            description: 'Has completado todos los niveles. ¡Felicidades!',
           });
+          router.push('/juego');
         }
       }
     }
@@ -148,7 +222,18 @@ export default function LevelPage() {
       const prevMission = level.missions[currentIndex - 1];
       setCurrentMissionData(prevMission);
       setCurrentMission(prevMission.id);
-      setInitialRobotMessage(prevMission, completedMissions.includes(prevMission.id));
+      setInitialRobotMessage(prevMission, isMissionCompleted(levelId, prevMission.id));
+    }
+  };
+
+  const goToNextLevel = () => {
+    if (nextLevelId) {
+      console.log(`Navegando al siguiente nivel: ${nextLevelId}`);
+      router.push(`/juego/nivel/${nextLevelId}`);
+    } else {
+      console.warn("No hay siguiente nivel definido");
+      // Si no hay siguiente nivel, volver a la página principal
+      router.push('/juego');
     }
   };
 
@@ -171,10 +256,14 @@ export default function LevelPage() {
   const isLastMission = currentIndex === level.missions.length - 1;
   
   // Determinar si la misión actual ya está completada
-  const isCurrentMissionCompleted = completedMissions.includes(currentMission.id);
+  const isCurrentMissionCompleted = isMissionCompleted(levelId, currentMission.id);
   
   // Calcular cuántas misiones del nivel actual están completadas
-  const completedInLevel = level.missions.filter(m => completedMissions.includes(m.id)).length;
+  const levelCompletedMissions = getCompletedMissionsForLevel(levelId);
+  const completedInLevel = levelCompletedMissions.length;
+  
+  // Verificar si todo el nivel está completado
+  const levelCompleted = isLevelCompleted(levelId);
 
   return (
     <div className="container py-8 px-4 md:px-8">
@@ -210,6 +299,33 @@ export default function LevelPage() {
         />
       </div>
 
+      {/* Mensaje de nivel completado */}
+      {levelCompleted && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-center"
+        >
+          <h3 className="text-lg font-bold text-green-700 mb-2">¡Nivel completado!</h3>
+          <p className="text-green-600 mb-3">Has superado todas las misiones de este nivel.</p>
+          {nextLevelId ? (
+            <Button 
+              onClick={goToNextLevel}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Ir al Nivel {nextLevelId}
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => router.push('/juego')}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Volver al inicio
+            </Button>
+          )}
+        </motion.div>
+      )}
+
       <div className="mb-6">
         <MapVisualization mission={currentMission} level={level} />
       </div>
@@ -243,12 +359,14 @@ export default function LevelPage() {
         </Button>
         
         <Button
-          variant={isCurrentMissionCompleted ? "default" : "outline"}
+          variant={isCurrentMissionCompleted || levelCompleted ? "default" : "outline"}
           onClick={handleNextMission}
           className="flex items-center gap-2"
         >
-          {isLastMission && completedInLevel === level.missions.length 
-            ? "Finalizar nivel" 
+          {isLastMission && levelCompleted
+            ? nextLevelId 
+              ? "Ir al siguiente nivel" 
+              : "Volver al inicio"
             : "Siguiente"}
           <ChevronRight className="h-4 w-4" />
         </Button>
