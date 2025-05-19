@@ -1,0 +1,100 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "Secuencia",
+      "description": "Aprende a ordenar instrucciones en secuencia",
+      "missions": [
+        {
+          "id": 1,
+          "title": "¡El robot necesita moverse!",
+          "description": "Ayuda al robot a navegar por el laberinto para llegar a la estrella.",
+          "code": "mover derecha\nmover arriba\nmover derecha\nmover abajo\nmover izquierda",
+          "question": "¿Qué está mal en esta secuencia para llegar a la estrella?",
+          "options": [
+            "El último movimiento debe ser hacia la derecha, no hacia la izquierda",
+            "El movimiento 'arriba' no es necesario",
+            "Todos los movimientos están en orden incorrecto"
+          ],
+          "correctAnswer": 0,
+          "explanation": "¡Correcto! El robot estaba a un paso de llegar a la estrella, pero el último movimiento lo alejó de ella. La secuencia correcta es:\n\nmover derecha\nmover arriba\nmover derecha\nmover abajo\nmover derecha",
+          "hint": "Observa bien el mapa. ¿El último movimiento acerca o aleja al robot de la estrella?"
+        },
+        {
+          "id": 2,
+          "title": "Encendiendo la luz",
+          "description": "El robot necesita encender una luz, pero los pasos están desordenados.",
+          "code": "presionar interruptor\nir hacia la luz\nbuscar interruptor",
+          "question": "¿Qué está mal en esta secuencia para encender la luz?",
+          "options": [
+            "No se puede encender una luz con un robot",
+            "Las instrucciones están en orden incorrecto",
+            "Falta la instrucción 'conectar cables'"
+          ],
+          "correctAnswer": 1,
+          "explanation": "¡Correcto! Las instrucciones deben estar en orden lógico. La secuencia correcta es:\n\nir hacia la luz\nbuscar interruptor\npresionar interruptor",
+          "hint": "Piensa en qué debe hacer primero el robot. ¿Puede presionar el interruptor antes de encontrarlo?"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Condicionales",
+      "description": "Aprende a tomar decisiones basadas en condiciones",
+      "missions": [
+        {
+          "id": 1,
+          "title": "El puente roto",
+          "description": "El robot necesita cruzar un puente, pero debe verificar si es seguro.",
+          "code": "si puente está roto\n  cruzar puente",
+          "question": "¿Qué está mal en este código para cruzar el puente?",
+          "options": [
+            "Falta una acción para cuando el puente no está roto",
+            "No se puede usar 'si' en código",
+            "El robot no puede cruzar puentes"
+          ],
+          "correctAnswer": 0,
+          "explanation": "¡Correcto! Deberías usar un condicional para cuando el puente NO esté roto. El código correcto sería:\n\nsi puente no está roto\n  cruzar puente",
+          "hint": "¿Cuándo debería el robot cruzar el puente? ¿Cuando está roto o cuando no está roto?"
+        },
+        {
+          "id": 2,
+          "title": "Día de lluvia",
+          "description": "El robot quiere salir pero necesita decidir qué hacer según el clima.",
+          "code": "si lluvia = verdadero\n  abrir paraguas",
+          "question": "¿Qué está mal en este código para protegerse de la lluvia?",
+          "options": [
+            "El operador de comparación es incorrecto",
+            "Falta la instrucción de salir",
+            "No se pueden usar valores 'verdadero' o 'falso'"
+          ],
+          "correctAnswer": 0,
+          "explanation": "¡Correcto! Para comparar valores se usa '==' (doble igual), no '=' (que es para asignar valores). El código correcto sería:\n\nsi lluvia == verdadero\n  abrir paraguas",
+          "hint": "Fíjate en el símbolo que se usa para comparar 'lluvia' con 'verdadero'."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Bucles",
+      "description": "Aprende a repetir instrucciones con bucles",
+      "missions": [
+        {
+          "id": 1,
+          "title": "Recoger estrellas",
+          "description": "El robot necesita recoger 5 estrellas que están en línea recta.",
+          "code": "repetir 4 veces\n  mover adelante\n  recoger estrella",
+          "question": "¿Qué está mal en este código para recoger 5 estrellas?",
+          "options": [
+            "El bucle debe repetirse 5 veces, no 4",
+            "Falta la instrucción 'fin repetir'",
+            "No se pueden recoger estrellas en un bucle"
+          ],
+          "correctAnswer": 0,
+          "explanation": "¡Correcto! Para recoger 5 estrellas, el bucle debe repetirse 5 veces. El código correcto sería:\n\nrepetir 5 veces\n  mover adelante\n  recoger estrella",
+          "hint": "¿Cuántas estrellas necesita recoger el robot? ¿Coincide ese número con las repeticiones del bucle?"
+        }
+      ]
+    }
+  ]
+}
